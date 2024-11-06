@@ -1,0 +1,24 @@
+https://docs.micropython.org/en/latest/reference/pyboard.py.html
+
+.\pyboard.py --device COM3 main.py              # runs main.py off pyboard
+.\pyboard.py --device COM3 -f cat [path]        # prints content of file
+.\pyboard.py --device COM3 -f ls                # list contents of directory
+.\pyboard.py --device COM3 -f ls [path]         # ^ uses path
+.\pyboard.py --device COM3 -f rm [path]         # removes file
+.\pyboard.py --device COM3 -f rmdir [path]      # removes directory
+.\pyboard.py --device COM3 -f mkdir [path]      # create directory
+.\pyboard.py --device COM3 -f cp [local path] :[ESP32 path]     # copy file to ESP32
+# unfortunately I don't think pyboard supports copying directories
+
+
+
+# list of commands I used to set up a similar structure in the repo on ESP32:
+# (replace COM3 with your port and remove files you don't want first)
+
+.\pyboard.py --device COM3 -f mkdir /resources
+.\pyboard.py --device COM3 -f cp resources/data.py :resources/data.py
+.\pyboard.py --device COM3 -f cp resources/deltat.py :resources/deltat.py
+.\pyboard.py --device COM3 -f cp resources/fusion.py :resources/fusion.py
+.\pyboard.py --device COM3 -f cp resources/imu.py :resources/imu.py
+.\pyboard.py --device COM3 -f cp resources/vector3d.py :resources/vector3d.py
+.\pyboard.py --device COM3 -f cp main.py :main.py
