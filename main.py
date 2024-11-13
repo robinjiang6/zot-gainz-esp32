@@ -4,6 +4,9 @@ from time import sleep_ms
 from resources.fusion import Fusion
 from resources.data import Reading
 
+import network
+import espnow
+
 i2c= I2C(scl=Pin(22), sda=Pin(21))
 imu = MPU6050(i2c)
 f = Fusion()
@@ -19,15 +22,19 @@ def pretty_print(data: float):
         data = f"{data:.3f}"
     return add + data
 
-def test_LED():
-    led = Pin(2, Pin.OUT)
-    while True:
-        print(".")
-        led.on()
-        sleep_ms(500)
-        led.off()
-        sleep_ms(500)
-test_LED()
+# A WLAN interface must be active to send()/recv()
+sta = network.WLAN(network.STA_IF)  # Or network.AP_IF
+sta.active(True)
+
+e = espnow.ESPNow()
+e.active(True)
+peer = b'\xbb\xbb\xbb\xbb\xbb\xbb'   # MAC address of peer's wifi interface
+e.add_peer(peer)      # Must add_peer() before send()
+
+e.send(peer, "Starting...")
+for i in range(100):
+    e.send(peer, str(i)*20, True)
+e.send(peer, b'end')
 
 while True:
     f.update_nomag(imu.accel.xyz, imu.gyro.xyz)
