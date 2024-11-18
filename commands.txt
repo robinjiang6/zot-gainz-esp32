@@ -22,3 +22,11 @@ https://docs.micropython.org/en/latest/reference/pyboard.py.html
 .\pyboard.py --device COM3 -f cp resources/imu.py :resources/imu.py
 .\pyboard.py --device COM3 -f cp resources/vector3d.py :resources/vector3d.py
 .\pyboard.py --device COM3 -f cp main.py :main.py
+.\pyboard.py --device COM3 -f mkdir /resources/aioble
+.\pyboard.py --device COM3 -f cp resources/aioble/__init__.py :resources/aioble/__init__.py
+.\pyboard.py --device COM3 -f cp resources/aioble/core.py :resources/aioble/core.py
+.\pyboard.py --device COM3 -f cp resources/aioble/device.py :resources/aioble/device.py
+.\pyboard.py --device COM3 -f cp resources/aioble/l2cap.py :resources/aioble/l2cap.py
+.\pyboard.py --device COM3 -f cp resources/aioble/peripheral.py :resources/aioble/peripheral.py
+.\pyboard.py --device COM3 -f cp resources/aioble/security.py :resources/aioble/security.py
+.\pyboard.py --device COM3 -f cp resources/aioble/server.py :resources/aioble/server.py

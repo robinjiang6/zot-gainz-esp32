@@ -128,6 +128,7 @@ asyncio.run(main())
 # A WLAN interface must be active to send()/recv()
 sta = network.WLAN(network.STA_IF)  # Or network.AP_IF
 sta.active(True)
+print(sta.config('mac'))
 
 e = espnow.ESPNow()
 e.active(True)
