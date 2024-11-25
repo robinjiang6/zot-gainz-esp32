@@ -1,41 +1,55 @@
 # Author: Robin Jiang
 # Date: 11/6/24
-# Description: Additional datatype with underlying 
-# queue to be used with bluetooth low energy
-
-from collections import deque
+# Description: Additional datatype to be used with bluetooth low energy
 
 class Reading:
     def __init__(self,
-                 max_length = 50,
+                 max_length = 10,
                  ):
         """
+        self.rolling_heading: float, average of past max_length readings
+        self.rolling_pitch: float, average of past max_length readings
+        self.rolling_roll: float, average of past max_length readings
         self.max_length: integer, limits number of readings stored at a time
         self.readings: deque (queue) that stores readings 
         """
+        self.rolling_heading = 0
+        self.rolling_pitch = 0
+        self.rolling_roll = 0
         self.max_length = max_length
-        self.readings = deque()
+        self.readings = []
 
-    def append(self, reading: tuple[float, float, float]):
+    def add_reading(self, heading: float, pitch: float, roll: float):
         """Appends reading to self.readings"""
+        reading = (heading, pitch, roll)
         self.readings.append(reading)
-        self._require_less_readings_than_max_length()
+        if len(self.readings) > self.max_length:
+            self.readings.popleft()
+        self.rolling_heading = sum(reading[0] for reading in self.readings)/len(self.readings)
+        self.rolling_pitch = sum(reading[1] for reading in self.readings)/len(self.readings)
+        self.rolling_roll = sum(reading[2] for reading in self.readings)/len(self.readings)
 
     
-    def pop(self, num = 1):
-        """Returns the oldest num readings in self.readings, popping them as a result.
-        If num is greater than 1, returns readings as a list. If num is 1, returns a tuple."""
-        if num == 1:
-            return self.readings.popleft()
-        ret = []
-        for _ in num:
-            ret.append(self.readings.popleft())
-        return ret
+    def get_reading(self):
+        """Returns the rolling averages"""
+        return self.rolling_heading, self.rolling_pitch, self.rolling_roll
+
+    def print(self):
+        """Prints the current reading"""
+        print(f"Heading: {pretty_print(self.rolling_heading)}, Pitch: {pretty_print(self.rolling_pitch)}, Roll: {pretty_print(self.rolling_roll)}")
     
     def __len__(self):
         return len(self.readings)
+    
 
-    def _require_less_readings_than_max_length(self):
-        """Pops old readings if max length is exceeded"""
-        while len(self.readings) > self.max_length:
-            print(f"too many readings, popping: {self.readings.popleft()}")
+def pretty_print(data: float):
+    add = ""
+    if data >= 0:
+        add = " "
+    if abs(data) < 10:
+        data = f"{data:.5f}"
+    elif abs(data) < 100:
+        data = f"{data:.4f}"
+    else:
+        data = f"{data:.3f}"
+    return add + data

@@ -16,6 +16,9 @@ import struct
 import network
 import espnow
 
+# replace this with the mac address of the receiver
+MAIN_ESP_MAC = b'\xbb\xbb\xbb\xbb\xbb\xbb'
+
 i2c= I2C(scl=Pin(22), sda=Pin(21))
 imu = MPU6050(i2c)
 f = Fusion()
@@ -106,6 +109,32 @@ async def peripheral_task():
             print("Connection from", connection.device)
             await connection.disconnected(timeout_ms=None)
 
+
+# ESPNOW, communication between ESP32 devices:
+# https://docs.micropython.org/en/latest/library/espnow.html
+# A WLAN interface must be active to send()/recv()
+sta = network.WLAN(network.STA_IF)
+sta.active(True)
+#print(sta.config('mac'))   # get current mac address
+
+e = espnow.ESPNow()
+e.active(True)
+e.add_peer(MAIN_ESP_MAC)
+
+# e.send(MAIN_ESP_MAC, "Starting...")
+# Sends data to main ESP32
+print("HELLOOOOOOO")
+data = Reading()
+async def esp_send_task():
+    while True:
+        # collect rolling average every 10ms
+        for _ in range(10):
+            f.update_nomag(imu.accel.xyz, imu.gyro.xyz)
+            data.add_reading(f.heading, f.pitch, f.roll)
+            await asyncio.sleep_ms(10)
+        e.send(MAIN_ESP_MAC, data.get_reading, True)
+
+
 # async def peripheral_task():
 #     while True:
 #         async with await aioble.advertise(
@@ -125,26 +154,13 @@ async def main():
 
 
 asyncio.run(main())
-# A WLAN interface must be active to send()/recv()
-sta = network.WLAN(network.STA_IF)  # Or network.AP_IF
-sta.active(True)
-print(sta.config('mac'))
-
-e = espnow.ESPNow()
-e.active(True)
-peer = b'\xbb\xbb\xbb\xbb\xbb\xbb'   # MAC address of peer's wifi interface
-e.add_peer(peer)      # Must add_peer() before send()
-
-e.send(peer, "Starting...")
-for i in range(100):
-    e.send(peer, str(i)*20, True)
-e.send(peer, b'end')
 
 while True:
     f.update_nomag(imu.accel.xyz, imu.gyro.xyz)
-    print(pretty_print(f.heading), pretty_print(f.pitch), pretty_print(f.roll))
+    data.add_reading(f.heading, f.pitch, f.roll)
+    data.print()
     #print(imu.accel.xyz)
     #print(imu.gyro.xyz)
     #print(imu.temperature)
     #print(imu.accel.z)
-    sleep_ms(100)
+    sleep_ms(10)
