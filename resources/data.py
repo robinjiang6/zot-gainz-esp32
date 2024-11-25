@@ -3,7 +3,7 @@
 # Description: Additional datatype to be used with bluetooth low energy
 
 class Reading:
-    def __init__(self,
+    def __init__(self, name = "generic_sensor",
                  max_length = 10,
                  ):
         """
@@ -13,6 +13,7 @@ class Reading:
         self.max_length: integer, limits number of readings stored at a time
         self.readings: deque (queue) that stores readings 
         """
+        self.name = name
         self.rolling_heading = 0
         self.rolling_pitch = 0
         self.rolling_roll = 0
@@ -24,7 +25,7 @@ class Reading:
         reading = (heading, pitch, roll)
         self.readings.append(reading)
         if len(self.readings) > self.max_length:
-            self.readings.popleft()
+            self.readings.pop(0)
         self.rolling_heading = sum(reading[0] for reading in self.readings)/len(self.readings)
         self.rolling_pitch = sum(reading[1] for reading in self.readings)/len(self.readings)
         self.rolling_roll = sum(reading[2] for reading in self.readings)/len(self.readings)
@@ -33,6 +34,20 @@ class Reading:
     def get_reading(self):
         """Returns the rolling averages"""
         return self.rolling_heading, self.rolling_pitch, self.rolling_roll
+
+    def prepare_reading(self):
+        """Formats reading into string format to send in ESPNOW"""
+        return f"{self.name};{self.rolling_heading};{self.rolling_pitch};{self.rolling_roll}"
+    
+    @staticmethod
+    def decipher_reading(reading: str):
+        """Decifers a reading in ESPNOW format"""
+        _reading = reading.split(";")
+        name = _reading[0]
+        heading = float(_reading[1])
+        pitch = float(_reading[2])
+        roll = float(_reading[3])
+        return name, heading, pitch, roll
 
     def print(self):
         """Prints the current reading"""

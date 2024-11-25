@@ -123,8 +123,8 @@ e.add_peer(MAIN_ESP_MAC)
 
 # e.send(MAIN_ESP_MAC, "Starting...")
 # Sends data to main ESP32
-print("HELLOOOOOOO")
-data = Reading()
+data = Reading(name="leg_sensor_1")
+
 async def esp_send_task():
     while True:
         # collect rolling average every 10ms
@@ -132,7 +132,7 @@ async def esp_send_task():
             f.update_nomag(imu.accel.xyz, imu.gyro.xyz)
             data.add_reading(f.heading, f.pitch, f.roll)
             await asyncio.sleep_ms(10)
-        e.send(MAIN_ESP_MAC, data.get_reading, True)
+        e.send(MAIN_ESP_MAC, data.prepare_reading(), True)
 
 
 # async def peripheral_task():
@@ -153,7 +153,7 @@ async def main():
     await asyncio.gather(t1, t2)
 
 
-asyncio.run(main())
+#asyncio.run(main())
 
 while True:
     f.update_nomag(imu.accel.xyz, imu.gyro.xyz)
