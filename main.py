@@ -17,30 +17,11 @@ import network
 import espnow
 
 # replace this with the mac address of the receiver
-MAIN_ESP_MAC = b'\xbb\xbb\xbb\xbb\xbb\xbb'
+MAIN_ESP_MAC = b'\xa0\xb7e"\xff\xe0'
 
 i2c= I2C(scl=Pin(22), sda=Pin(21))
 imu = MPU6050(i2c)
 f = Fusion()
-def pretty_print(data: float):
-    add = ""
-    if data >= 0:
-        add = " "
-    if abs(data) < 10:
-        data = f"{data:.5f}"
-    elif abs(data) < 100:
-        data = f"{data:.4f}"
-    else:
-        data = f"{data:.3f}"
-    return add + data
-
-def test_IMU():
-    while True:
-        f.update_nomag(imu.accel.xyz, imu.gyro.xyz)
-        print(pretty_print(f.heading), pretty_print(f.pitch), pretty_print(f.roll))
-        sleep_ms(100)
-
-
 
 # # org.bluetooth.service.environmental_sensing
 _ENV_SENSE_UUID = bluetooth.UUID(0x181A)
@@ -113,27 +94,45 @@ async def peripheral_task():
 # ESPNOW, communication between ESP32 devices:
 # https://docs.micropython.org/en/latest/library/espnow.html
 # A WLAN interface must be active to send()/recv()
+
 sta = network.WLAN(network.STA_IF)
 sta.active(True)
-#print(sta.config('mac'))   # get current mac address
 
 e = espnow.ESPNow()
 e.active(True)
-e.add_peer(MAIN_ESP_MAC)
+def espnow_add_peer(esp_now, mac: bytes):
+    esp_now.add_peer(mac)
+    print(esp_now.get_peers())
+    print(esp_now.get_peer(mac))
 
-# e.send(MAIN_ESP_MAC, "Starting...")
-# Sends data to main ESP32
+if sta.config('mac') != MAIN_ESP_MAC:
+    # not receiver
+    espnow_add_peer(e, MAIN_ESP_MAC)
+    e.send(MAIN_ESP_MAC, "Starting...")
 data = Reading(name="leg_sensor_1")
 
 async def esp_send_task():
     while True:
         # collect rolling average every 10ms
+
+        # change range from 10 to 1 for more frequent data send
         for _ in range(10):
             f.update_nomag(imu.accel.xyz, imu.gyro.xyz)
             data.add_reading(f.heading, f.pitch, f.roll)
             await asyncio.sleep_ms(10)
         e.send(MAIN_ESP_MAC, data.prepare_reading(), True)
 
+def receive_data():
+    while True:
+        host, msg = e.recv()
+        if msg:             # msg == None if timeout in recv()
+            print(host, msg)
+            if msg == b'end':
+                break
+
+if sta.config('mac') == MAIN_ESP_MAC:
+    print(sta.config('mac')) # get current mac address
+    receive_data()
 
 # async def peripheral_task():
 #     while True:
@@ -148,19 +147,10 @@ async def esp_send_task():
 
 # Run both tasks.
 async def main():
-    t1 = asyncio.create_task(sensor_task())
-    t2 = asyncio.create_task(peripheral_task())
-    await asyncio.gather(t1, t2)
+    #t1 = asyncio.create_task(sensor_task())
+    #t2 = asyncio.create_task(peripheral_task())
+    t3 = asyncio.create_task(esp_send_task())
+    await asyncio.gather(t3)
 
 
-#asyncio.run(main())
-
-while True:
-    f.update_nomag(imu.accel.xyz, imu.gyro.xyz)
-    data.add_reading(f.heading, f.pitch, f.roll)
-    data.print()
-    #print(imu.accel.xyz)
-    #print(imu.gyro.xyz)
-    #print(imu.temperature)
-    #print(imu.accel.z)
-    sleep_ms(10)
+asyncio.run(main())
