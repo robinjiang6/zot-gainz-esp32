@@ -109,7 +109,9 @@ if sta.config('mac') != MAIN_ESP_MAC:
     # not receiver
     espnow_add_peer(e, MAIN_ESP_MAC)
     e.send(MAIN_ESP_MAC, "Starting...")
-data = Reading(name="leg_sensor_1")
+
+# ls1 = leg_sensor_1
+data = Reading(name="ls1")
 
 async def esp_send_task():
     while True:
@@ -155,14 +157,18 @@ async def main():
 #asyncio.run(main())
 
 def esp_send_data():
+    i = 0
     while True:
         # collect rolling average every 10ms
 
         # change range from 10 to 1 for more frequent data send
-        for _ in range(10):
+        # send packet once every 750 ms
+        # any faster causes significant packet loss
+        for _ in range(75):
             f.update_nomag(imu.accel.xyz, imu.gyro.xyz)
             data.add_reading(f.heading, f.pitch, f.roll)
             sleep_ms(10)
-        print(f"sending: {data.prepare_reading()}")
-        e.send(MAIN_ESP_MAC, data.prepare_reading(), True)
+        print(f"sending: i: {i}, {data.prepare_reading()}")
+        e.send(MAIN_ESP_MAC, f"i: {i}, " + data.prepare_reading(), True)
+        i += 1
 esp_send_data()
