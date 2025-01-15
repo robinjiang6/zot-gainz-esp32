@@ -58,7 +58,12 @@ class Reading:
 
     def prepare_reading(self):
         """Formats reading into json string format to send in ESPNOW"""
-        return json.dumps(self.data)
+        data = json.dumps(self.data)
+        if 'h' in self.data:
+            self.data['h'].clear()
+        self.data['p'].clear()
+        self.data['r'].clear()
+        return data
     
     @staticmethod
     def decipher_reading(reading: str):
