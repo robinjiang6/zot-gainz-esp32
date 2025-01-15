@@ -16,28 +16,12 @@ import struct
 import network
 import espnow
 
+# replace this with the mac address of the receiver
+MAIN_ESP_MAC = b'\xa0\xb7e"\xff\xe0'
+
 i2c= I2C(scl=Pin(22), sda=Pin(21))
 imu = MPU6050(i2c)
 f = Fusion()
-def pretty_print(data: float):
-    add = ""
-    if data >= 0:
-        add = " "
-    if abs(data) < 10:
-        data = f"{data:.5f}"
-    elif abs(data) < 100:
-        data = f"{data:.4f}"
-    else:
-        data = f"{data:.3f}"
-    return add + data
-
-def test_IMU():
-    while True:
-        f.update_nomag(imu.accel.xyz, imu.gyro.xyz)
-        print(pretty_print(f.heading), pretty_print(f.pitch), pretty_print(f.roll))
-        sleep_ms(100)
-
-
 
 # # org.bluetooth.service.environmental_sensing
 _ENV_SENSE_UUID = bluetooth.UUID(0x181A)
@@ -106,6 +90,51 @@ async def peripheral_task():
             print("Connection from", connection.device)
             await connection.disconnected(timeout_ms=None)
 
+
+# ESPNOW, communication between ESP32 devices:
+# https://docs.micropython.org/en/latest/library/espnow.html
+# A WLAN interface must be active to send()/recv()
+
+sta = network.WLAN(network.STA_IF)
+sta.active(True)
+
+e = espnow.ESPNow()
+e.active(True)
+def espnow_add_peer(esp_now, mac: bytes):
+    esp_now.add_peer(mac)
+    print(esp_now.get_peers())
+    print(esp_now.get_peer(mac))
+
+if sta.config('mac') != MAIN_ESP_MAC:
+    # not receiver
+    espnow_add_peer(e, MAIN_ESP_MAC)
+    e.send(MAIN_ESP_MAC, "Starting...")
+
+# ls1 = leg_sensor_1
+data = Reading(name="ls1")
+
+async def esp_send_task():
+    while True:
+        # collect rolling average every 10ms
+
+        # change range from 10 to 1 for more frequent data send
+        for _ in range(100):
+            f.update_nomag(imu.accel.xyz, imu.gyro.xyz)
+            data.add_reading(f.heading, f.pitch, f.roll)
+            await asyncio.sleep_ms(10)
+        e.send(MAIN_ESP_MAC, data.prepare_reading(), True)
+
+def receive_data():
+    while True:
+        host, msg = e.recv()
+        if msg:             # msg == None if timeout in recv()
+            print(host, msg)
+            if msg == b'end':
+                break
+if sta.config('mac') == MAIN_ESP_MAC:
+    print(sta.config('mac')) # get current mac address
+    receive_data()
+
 # async def peripheral_task():
 #     while True:
 #         async with await aioble.advertise(
@@ -119,31 +148,27 @@ async def peripheral_task():
 
 # Run both tasks.
 async def main():
-    t1 = asyncio.create_task(sensor_task())
-    t2 = asyncio.create_task(peripheral_task())
-    await asyncio.gather(t1, t2)
+    #t1 = asyncio.create_task(sensor_task())
+    #t2 = asyncio.create_task(peripheral_task())
+    t3 = asyncio.create_task(esp_send_task())
+    await asyncio.gather(t3)
 
 
-asyncio.run(main())
-# A WLAN interface must be active to send()/recv()
-sta = network.WLAN(network.STA_IF)  # Or network.AP_IF
-sta.active(True)
+#asyncio.run(main())
 
-e = espnow.ESPNow()
-e.active(True)
-peer = b'\xbb\xbb\xbb\xbb\xbb\xbb'   # MAC address of peer's wifi interface
-e.add_peer(peer)      # Must add_peer() before send()
+def esp_send_data():
+    i = 0
+    while True:
+        # collect rolling average every 10ms
 
-e.send(peer, "Starting...")
-for i in range(100):
-    e.send(peer, str(i)*20, True)
-e.send(peer, b'end')
-
-while True:
-    f.update_nomag(imu.accel.xyz, imu.gyro.xyz)
-    print(pretty_print(f.heading), pretty_print(f.pitch), pretty_print(f.roll))
-    #print(imu.accel.xyz)
-    #print(imu.gyro.xyz)
-    #print(imu.temperature)
-    #print(imu.accel.z)
-    sleep_ms(100)
+        # change range from 10 to 1 for more frequent data send
+        # send packet once every 750 ms
+        # any faster causes significant packet loss
+        for _ in range(75):
+            f.update_nomag(imu.accel.xyz, imu.gyro.xyz)
+            data.add_reading(f.heading, f.pitch, f.roll)
+            sleep_ms(10)
+        print(f"sending: i: {i}, {data.prepare_reading()}")
+        e.send(MAIN_ESP_MAC, f"i: {i}, " + data.prepare_reading(), True)
+        i += 1
+esp_send_data()
