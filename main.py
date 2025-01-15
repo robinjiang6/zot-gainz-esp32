@@ -116,7 +116,7 @@ async def esp_send_task():
         # collect rolling average every 10ms
 
         # change range from 10 to 1 for more frequent data send
-        for _ in range(10):
+        for _ in range(100):
             f.update_nomag(imu.accel.xyz, imu.gyro.xyz)
             data.add_reading(f.heading, f.pitch, f.roll)
             await asyncio.sleep_ms(10)
@@ -129,7 +129,6 @@ def receive_data():
             print(host, msg)
             if msg == b'end':
                 break
-
 if sta.config('mac') == MAIN_ESP_MAC:
     print(sta.config('mac')) # get current mac address
     receive_data()
@@ -153,4 +152,17 @@ async def main():
     await asyncio.gather(t3)
 
 
-asyncio.run(main())
+#asyncio.run(main())
+
+def esp_send_data():
+    while True:
+        # collect rolling average every 10ms
+
+        # change range from 10 to 1 for more frequent data send
+        for _ in range(10):
+            f.update_nomag(imu.accel.xyz, imu.gyro.xyz)
+            data.add_reading(f.heading, f.pitch, f.roll)
+            sleep_ms(10)
+        print(f"sending: {data.prepare_reading()}")
+        e.send(MAIN_ESP_MAC, data.prepare_reading(), True)
+esp_send_data()
